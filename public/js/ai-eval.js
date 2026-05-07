@@ -162,8 +162,27 @@ async function runAutoEvaluation(token, bundleKey) {
 
     // Update avatar points if accepted
     if (d.evaluation.verdict === 'accepted' && d.evaluation.total_points != null) {
+      var newPts = d.evaluation.total_points;
+
+      // 1. Update the avatar dropdown display on current page
       var ptEl = document.getElementById('avPts');
-      if (ptEl) ptEl.textContent = d.evaluation.total_points;
+      if (ptEl) ptEl.textContent = newPts;
+
+      // 2. Update the in-memory session object (if exists)
+      if (typeof session !== 'undefined' && session) {
+        session.points = newPts;
+      }
+
+      // 3. Persist to SkillingAuth localStorage so other pages pick it up
+      try {
+        if (window.SkillingAuth && window.SkillingAuth.readRaw) {
+          var stored = window.SkillingAuth.readRaw();
+          if (stored && stored.user) {
+            stored.user.points = newPts;
+            window.SkillingAuth.write(stored);
+          }
+        }
+      } catch (_) {}
     }
   } catch (err) {
     resultDiv.innerHTML = '<div style="text-align:center;padding:24px;color:var(--red)">Network error. Try again.</div>';

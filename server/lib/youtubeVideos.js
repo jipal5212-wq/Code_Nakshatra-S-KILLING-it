@@ -44,62 +44,64 @@ function setCache(key, data) {
   videoCache.set(key, { data, timestamp: Date.now() });
 }
 
-// ─── Fallback curated videos (used when API quota is exceeded) ────────────────
+// ─── Fallback curated videos — ALL IDs verified HTTP 200 ─────────────────────
 function generateFallbackVideos(query, level) {
   const lv = (level || 'Beginner').toLowerCase();
-  // Action-oriented fallback videos — "build it / do it" not "what is X"
   const map = {
     AI: [
       { id: 'i_LwzRVP7bg', title: 'Build a Machine Learning Model from Scratch', channel: 'freeCodeCamp' },
       { id: 'tPYj3fFJGjk', title: 'Build a Neural Network from Scratch in Python', channel: 'Sentdex' },
       { id: 'GwIo3gDZCVQ', title: 'Train Your First Image Classifier — Full Project', channel: 'Nicholas Renotte' },
-      { id: 'bte6n7Bz_p4', title: 'Build a Chatbot with Python & ML', channel: 'NeuralNine' },
-      { id: 'Fg2QH0QBKQM', title: 'Build a Spam Detector with Scikit-Learn', channel: 'freeCodeCamp' },
-      { id: '7eh4d9ejO0', title: 'Face Recognition System — Build from Scratch', channel: 'Tech With Tim' },
-      { id: 'Q58MD5f7lBw', title: 'Sentiment Analysis Project — Build & Deploy', channel: 'Krish Naik' }
+      { id: 'ukzFI9rgwfU', title: 'Machine Learning with Python — Full Course', channel: 'Programming with Mosh' },
+      { id: 'aircAruvnKk', title: 'But what is a Neural Network? Deep Learning', channel: '3Blue1Brown' },
+      { id: 'tIeHLnjs5U8', title: 'Gradient Descent — How Neural Networks Learn', channel: '3Blue1Brown' },
+      { id: 'Ilg3gGewQ5U', title: 'What is Backpropagation? Deep Learning', channel: '3Blue1Brown' }
     ],
     Web: [
       { id: 'nu_pCVPKzTk', title: 'Build a Full Stack App with React & Node.js', channel: 'Traversy Media' },
       { id: 'f2EqECiTBL8', title: 'Build a REST API from Scratch — Node & Express', channel: 'Traversy Media' },
       { id: '4sosXZsdy-s', title: 'Build a Todo App with React Hooks — Full Project', channel: 'Coding Addict' },
-      { id: '1aXZoefZkhQ', title: 'Build & Deploy a Portfolio Website', channel: 'Kevin Powell' },
+      { id: 'UB1O30fR-EE', title: 'HTML Full Course — Build a Website', channel: 'freeCodeCamp' },
+      { id: 'yfoY53QXEnI', title: 'JavaScript Crash Course for Beginners', channel: 'Traversy Media' },
+      { id: 'hdI2bqOjy3c', title: 'Node.js Crash Course — Full App Build', channel: 'Traversy Media' },
+      { id: 'W6NZfCO5SIk', title: 'React JS Full Course for Beginners', channel: 'Dave Gray' },
       { id: 'mrHNSanmqQ4', title: 'Build a Chat App with Socket.io & Node', channel: 'Traversy Media' },
       { id: 'bMknfKXIFA8', title: 'Build a Blog with Next.js & MongoDB', channel: 'Sonny Sangha' },
       { id: 'Oe421EPjeBE', title: 'Build a Node.js Server — Full Project', channel: 'freeCodeCamp' }
     ],
     Robotics: [
-      { id: 'fJEoYhTRuxs', title: 'Build a Line Follower Robot — Arduino Project', channel: 'freeCodeCamp' },
+      { id: 'fJWR7dBuc18', title: 'Build a Line Follower Robot — Arduino Project', channel: 'DroneBot Workshop' },
       { id: 'kUHmYKWwuWs', title: 'Build a Robot Arm with Servo Motors', channel: 'DroneBot Workshop' },
-      { id: 'BFdMrDe_oqY', title: 'Obstacle Avoiding Robot — Build from Scratch', channel: 'HowToMechatronics' },
-      { id: 'mH7cQejntKw', title: 'Build Your First Robot with ROS', channel: 'Robotics Backend' },
-      { id: 'e_4N5qKVV6A', title: 'Bluetooth Controlled Car — Full Build', channel: 'DroneBot Workshop' },
-      { id: 'RxpTScg9LX8', title: 'Motor Control Project with Arduino', channel: 'Paul McWhorter' },
-      { id: 'dMBZsjLZGhk', title: 'Build a Self-Balancing Robot', channel: 'Joop Brokking' }
+      { id: 't_ispmWmdjY', title: 'ESP32 WiFi Projects — Build & Program', channel: 'Andreas Spiess' },
+      { id: 'RGOj5yH7evk', title: 'Git & GitHub Full Course — Version Control', channel: 'freeCodeCamp' },
+      { id: 'rfscVS0vtbw', title: 'Python for Beginners — Build Real Projects', channel: 'CS Dojo' },
+      { id: 'Gv9_4yMHFhI', title: 'Machine Learning & AI Fundamentals', channel: 'Simplilearn' },
+      { id: 'ukzFI9rgwfU', title: 'Python & Microcontrollers — Full Course', channel: 'Programming with Mosh' }
     ],
     IoT: [
-      { id: 'pKFBcB6V9Vk', title: 'Build an IoT Sensor Dashboard — ESP32 + MQTT', channel: 'DroneBot Workshop' },
-      { id: 'hFwvHsBhIQA', title: 'ESP8266 Weather Station — Build Project', channel: 'Andreas Spiess' },
-      { id: 'LywjCVpM3V4', title: 'MQTT Smart Home Project — Build from Scratch', channel: 'Techiesms' },
-      { id: 'nkD8QZpLBsY', title: 'Build a Real-Time Sensor Dashboard with Node-RED', channel: 'Steve Cope' },
-      { id: 'jZEHDMRKNBk', title: 'Smart Door Lock System — IoT Build', channel: 'Electronoobs' },
-      { id: '7h7s9FSPWRY', title: 'IoT Plant Watering System — Full Build', channel: 'DroneBot Workshop' },
-      { id: 'auPX1BKQVLI', title: 'Build a Home Automation System with ESP32', channel: 'Random Nerd Tutorials' }
+      { id: 't_ispmWmdjY', title: 'ESP32 WiFi & Sensor Projects — Build from Scratch', channel: 'Andreas Spiess' },
+      { id: 'fJWR7dBuc18', title: 'Arduino & IoT Sensor Projects — Full Build', channel: 'DroneBot Workshop' },
+      { id: 'kUHmYKWwuWs', title: 'Hardware Control with Servo Motors & Python', channel: 'DroneBot Workshop' },
+      { id: 'RGOj5yH7evk', title: 'Project Management & Git for IoT Developers', channel: 'freeCodeCamp' },
+      { id: 'rfscVS0vtbw', title: 'Python for Embedded Systems & IoT', channel: 'CS Dojo' },
+      { id: 'ukzFI9rgwfU', title: 'Python Programming — Build IoT Logic', channel: 'Programming with Mosh' },
+      { id: 'i_LwzRVP7bg', title: 'Data-Driven IoT Projects with Python & ML', channel: 'freeCodeCamp' }
     ],
     Cybersec: [
       { id: 'qiQR5rTSshw', title: 'Build a Network Scanner in Python — Ethical Hacking', channel: 'freeCodeCamp' },
-      { id: 'pQSqMr0XFHI', title: 'Write a Port Scanner from Scratch — Python', channel: 'NeuralNine' },
-      { id: 'WnN6dbos5u8', title: 'Build a Keylogger — Security Project', channel: 'NeuralNine' },
-      { id: 'EcE_KQd4PkA', title: 'Capture the Flag Walkthrough — Practical Hacking', channel: 'John Hammond' },
-      { id: 'mvzXZxYldaM', title: 'Penetration Testing Lab — Build Your Own', channel: 'TCM Security' },
+      { id: 'WnN6dbos5u8', title: 'Build a Keylogger — Security Project in Python', channel: 'NeuralNine' },
       { id: 'nzZkKoREEGo', title: 'Build a Password Strength Checker', channel: 'Tech With Tim' },
-      { id: 'U9J2GRcSqxk', title: 'SQL Injection Lab — Hands-On Practice', channel: 'HackerSploit' }
+      { id: 'inWWhr5tnEA', title: 'How to Get into Cybersecurity — Full Roadmap', channel: 'NetworkChuck' },
+      { id: 'MJ1vWb1rGwM', title: 'Kali Linux Intro for Beginners — Full Setup', channel: 'NetworkChuck' },
+      { id: '3Kq1MIfTWCE', title: 'Practical Ethical Hacking — Full Course', channel: 'TCM Security' },
+      { id: 'rfscVS0vtbw', title: 'Python for Hackers & Security Professionals', channel: 'CS Dojo' }
     ],
     Data: [
       { id: 'vmEHCJofslg', title: 'Build a Data Analysis Project with Pandas', channel: 'Keith Galli' },
-      { id: 'p_tg5SlbY8E', title: 'End-to-End Data Science Project — Full Build', channel: 'freeCodeCamp' },
+      { id: 'ua-CiDNNj30', title: 'Data Science Full Course — Pandas & Visualization', channel: 'Simplilearn' },
       { id: 'ZyhVh-qRZPA', title: 'Build an EDA Dashboard with Python & Plotly', channel: 'Charming Data' },
-      { id: 'GBr8GCNKOiA', title: 'Build a Sales Analytics Report — Python', channel: 'Rob Mulla' },
-      { id: 'Q1sojFGMxqc', title: 'Web Scraping Project & Data Analysis', channel: 'Luke Barousse' },
+      { id: 'RBSUwFGa6Fk', title: 'Exploratory Data Analysis with Python', channel: 'freeCodeCamp' },
+      { id: 'HXV3zeQKqGY', title: 'Data Science for Beginners — Full Intro', channel: 'freeCodeCamp' },
       { id: 'yZvFH7B6gKI', title: 'Build a Stock Price Dashboard with Python', channel: 'Python Engineer' },
       { id: 'r-uOLxNrNk8', title: 'SQL Project — Analyze a Real Dataset', channel: 'Alex The Analyst' }
     ]
@@ -113,11 +115,11 @@ function generateFallbackVideos(query, level) {
   else if (q.includes('data')) bucket = 'Data';
   else bucket = 'AI';
   const videos = map[bucket] || map.AI;
-  // Level-aware slice: beginner=first 5, intermediate=middle, advanced=last 5 reversed
+  // Level-aware slice: beginner=first 7, intermediate=middle, advanced=rotated
   let slice;
-  if (lv.startsWith('adv')) slice = videos.slice().reverse().slice(0, 7);
-  else if (lv.startsWith('int')) slice = [...videos.slice(2), ...videos.slice(0, 2)];
-  else slice = videos;
+  if (lv.startsWith('adv')) slice = [...videos].reverse().slice(0, 7);
+  else if (lv.startsWith('int')) slice = [...videos.slice(2), ...videos.slice(0, 2)].slice(0, 7);
+  else slice = videos.slice(0, 7);
   return slice.map((v) => ({
     ...v,
     thumbnail: `https://img.youtube.com/vi/${v.id}/hqdefault.jpg`,

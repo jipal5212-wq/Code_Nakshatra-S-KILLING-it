@@ -355,5 +355,22 @@ module.exports = function adminRoutes(admin, upload) {
     }
   });
 
+  /** Additional task submissions (from Explore / T-Feed) */
+  r.get('/api/admin/additional-submissions', requireSiteAdmin, async (_req, res) => {
+    try {
+      const { data: bundles, error } = await admin
+        .from('submission_bundles')
+        .select('*, profiles(display_name, email, skill_domain, level)')
+        .like('cycle_start_iso', 'additional:%')
+        .order('updated_at', { ascending: false })
+        .limit(100);
+      if (error) return res.status(500).json({ error: error.message });
+      res.json({ bundles: bundles || [] });
+    } catch (e) {
+      console.error('[additional-submissions]', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   return r;
 };

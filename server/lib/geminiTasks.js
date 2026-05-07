@@ -55,11 +55,12 @@ Return ONLY valid JSON — no markdown, no explanation:
 [
   {
     "title": "Short imperative task title (max 10 words)",
-    "desc": "One sentence describing exactly what the learner will build and what technology they will use (max 25 words)",
+    "desc": "2-3 sentences: what the learner will build, which specific tools/tech they will use, and what the expected output looks like (max 60 words)",
     "effort": "~1 hr",
     "domain": "${ctx.name}",
     "level": "${level}",
-    "ytQuery": "specific YouTube search query to find a hands-on tutorial for this task"
+    "ytQuery": "specific YouTube search query to find a hands-on tutorial for this task",
+    "watchSegment": "MM:SS – MM:SS (the exact timestamp range in the tutorial video that covers this specific task — be precise, e.g. 05:30 – 22:00)"
   }
 ]`;
 }
@@ -118,6 +119,7 @@ async function generateTasks(geminiModel, skillKey, level, topics) {
       domain: String(t.domain || DOMAIN_CONTEXT[skillKey]?.name || skillKey).trim(),
       level: String(t.level || level).trim(),
       ytQuery: String(t.ytQuery || `${t.title} tutorial project`).trim(),
+      watchSegment: String(t.watchSegment || '').trim(),
       source: 'gemini'
     }));
 
@@ -129,6 +131,17 @@ async function generateTasks(geminiModel, skillKey, level, topics) {
     CACHE.set(cacheKey, { ts: Date.now(), tasks: staticTasks });
     return staticTasks;
   }
+}
+
+/**
+ * Generate a watch segment hint from task effort.
+ */
+function effortToSegment(effort) {
+  const e = (effort || '').toLowerCase();
+  if (e.includes('30')) return '00:00 – 10:00';
+  if (e.includes('1.5')) return '00:00 – 25:00';
+  if (e.includes('2') || e.includes('3')) return '00:00 – 35:00';
+  return '00:00 – 18:00';
 }
 
 /**
@@ -218,6 +231,7 @@ function getStaticTasks(skillKey, level, topics) {
     ...t,
     id: `static-${skillKey}-${level}-${i}`,
     level,
+    watchSegment: t.watchSegment || effortToSegment(t.effort),
     source: 'static'
   }));
 }

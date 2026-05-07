@@ -347,6 +347,19 @@ function showMsg(id,text,type='err'){
   setTimeout(()=>{el.className='msg '+(type==='ok'?'msg-ok':'msg-err');},4000);
 }
 
+async function checkAndOpenFile(url){
+  try{
+    const r=await fetch(url,{method:'HEAD'});
+    if(r.ok){window.open(url,'_blank');return;}
+    // File missing — show friendly toast
+    const toast=document.createElement('div');
+    toast.textContent='⚠️ File not found on server. It may have been uploaded before a server restart and is no longer on disk.';
+    toast.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e1e2e;border:1px solid rgba(245,158,11,.5);color:#f59e0b;font-family:var(--ff-body);font-size:.85rem;padding:12px 20px;border-radius:8px;z-index:99999;max-width:420px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+    document.body.appendChild(toast);
+    setTimeout(()=>toast.remove(),5000);
+  }catch{window.open(url,'_blank');}
+}
+
 // ── Auth ────────────────────────────────────────────────────────
 function showGate(){$('loginGate').style.display='flex';$('panel').style.display='none';}
 function showPanel(){$('loginGate').style.display='none';$('panel').style.display='block';}
@@ -599,8 +612,11 @@ function subCard(s){
   if(s.live_url)links+=`<a href="${esc(s.live_url)}" target="_blank" rel="noopener">Live →</a>`;
   if(s.demo_video_url)links+=`<a href="${esc(s.demo_video_url)}" target="_blank" rel="noopener">Demo Video →</a>`;
   (s.screenshot_urls||[]).forEach(u=>{links+=`<a href="${esc(u)}" target="_blank">Screenshot →</a>`;});
-  (s.file_paths||[]).forEach(p=>{const pp=p.startsWith('/')?p:'/'+p;links+=`<a href="${esc(pp)}" target="_blank">File →</a>`;});
-  const imgs=(s.screenshot_urls||[]).map(u=>`<img src="${esc(u)}" alt="" style="width:100px;height:64px;object-fit:cover;border-radius:6px;margin:4px" loading="lazy" onerror="this.style.display='none'">`).join('');
+  (s.file_paths||[]).forEach(p=>{
+    const pp=p.startsWith('/')?p:'/'+p;
+    links+=`<a href="#" onclick="checkAndOpenFile('${esc(pp)}');return false;" style="cursor:pointer;">📎 File →</a>`;
+  });
+  const imgs=(s.screenshot_urls||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener" title="View screenshot" style="display:inline-block;margin:4px"><img src="${esc(u)}" alt="screenshot" style="width:100px;height:64px;object-fit:cover;border-radius:6px;background:#1a1a2e;border:1px solid rgba(255,255,255,.08)" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\\'font-size:.75rem;color:#60a5fa;text-decoration:underline;cursor:pointer\\'>📷 View Screenshot →</span>'"></a>`).join('');
   return`<div class="sub-card ${cls}">
     <div class="sub-hdr">
       <div>
@@ -697,7 +713,7 @@ async function loadAdditionalSubs(){
 async function reviewAddl(bundleId,status){
   const pts=parseInt(($('addl-pts-'+bundleId)||{}).value||'0')||0;
   const fb=(($('addl-fb-'+bundleId)||{}).value||'').trim();
-  const res=await admFetch('/api/admin/review-submission',{method:'POST',body:JSON.stringify({bundleId,status,pointsAwarded:pts,adminFeedback:fb})});
+  const res=await admFetch('/api/admin/review-submission',{method:'POST',body:JSON.stringify({submissionId:bundleId,status,points:pts,feedback:fb})});
   const d=await res.json().catch(()=>({}));
   if(res.ok&&d.ok)loadAdditionalSubs();
   else alert('Error: '+(d.error||'Could not update.'));

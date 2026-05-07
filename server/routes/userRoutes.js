@@ -236,12 +236,23 @@ module.exports = function userRoutes(admin, upload) {
       const uid = req.user.id;
       const { data: profile } = await admin.from('profiles').select('*').eq('id', uid).single();
       const cycle = await ensureUserCycle(admin, uid, profile);
-      const { data: bundle } = await admin
+
+      // Bundles use domain-scoped keys: "<cycleStartISO>:<domain>"
+      // Use LIKE to find the current cycle's daily bundle regardless of domain
+      const { data: bundles } = await admin
         .from('submission_bundles')
         .select('*')
         .eq('user_id', uid)
-        .eq('cycle_start_iso', cycle.bounds.cycleStartISO)
-        .maybeSingle();
+        .like('cycle_start_iso', `${cycle.bounds.cycleStartISO}%`)
+        .not('cycle_start_iso', 'like', 'additional:%')
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      // Prefer accepted > pending > rejected > none
+      const order = ['accepted', 'pending_review', 'rejected'];
+      const bundle = (bundles || []).sort((a, b) =>
+        order.indexOf(a.status) - order.indexOf(b.status)
+      )[0] || null;
 
       res.json({
         profile,
@@ -366,25 +377,6 @@ module.exports = function userRoutes(admin, upload) {
         statusBreakdown,
         weeklyActivity
       });
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  /** Admin: get all additional task submissions (from Explore / T-Feed) */
-  r.get('/api/admin/additional-submissions', async (req, res) => {
-    const pass = process.env.ADMIN_SITE_PASSWORD || '';
-    const auth = req.headers['x-admin-password'] || '';
-    if (!pass || auth !== pass) return res.status(401).json({ error: 'Unauthorized.' });
-    try {
-      const { data: bundles } = await admin
-        .from('submission_bundles')
-        .select('*, profiles(display_name, email, skill_domain, level)')
-        .like('cycle_start_iso', 'additional:%')
-        .order('updated_at', { ascending: false })
-        .limit(100);
-      res.json({ bundles: bundles || [] });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });

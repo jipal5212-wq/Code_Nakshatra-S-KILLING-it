@@ -48,7 +48,13 @@ function createApp() {
 
   const storage = multer.diskStorage({
     destination: (_req, _f, cb) => cb(null, UPLOAD_DIR),
-    filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+    filename: (_req, file, cb) => {
+      // Strip spaces and any character that isn't alphanumeric, dot, dash, or underscore
+      const safe = file.originalname
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '');
+      cb(null, `${Date.now()}-${safe || 'file'}`);
+    }
   });
   const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 

@@ -16,6 +16,7 @@ const newsRoutes = require('./routes/newsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const tfeedRoutes = require('./routes/tfeedRoutes');
 const cycleRoutes = require('./routes/cycleRoutes');
+const aiEvalRoutes = require('./routes/aiEvalRoutes');
 
 let genAI = null;
 let geminiModel = null;
@@ -78,6 +79,7 @@ function createApp() {
     app.use(adminRoutes(admin, upload));
     app.use(tfeedRoutes(admin, geminiModel));
     app.use(cycleRoutes(admin));
+    app.use(aiEvalRoutes(admin, geminiModel));
   }
 
   // ── Legacy-compatible JSON fallbacks when Supabase off ───

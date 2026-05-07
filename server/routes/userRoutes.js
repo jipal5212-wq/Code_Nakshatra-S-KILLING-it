@@ -186,11 +186,9 @@ module.exports = function userRoutes(admin, upload) {
         .eq('cycle_start_iso', cStart)
         .maybeSingle();
 
-      if (bundle?.status === 'accepted')
-        return res.status(400).json({ error: 'This task is already approved for today.' });
-
+      // Allow re-upload even if previously accepted (for AI re-evaluation)
       const rel = `/uploads/${req.file.filename}`;
-      const files = [...(bundle?.file_paths || []).filter(Boolean), rel];
+      const files = [rel]; // Fresh file list on new upload
 
       const upsertPayload = {
         user_id: uid,

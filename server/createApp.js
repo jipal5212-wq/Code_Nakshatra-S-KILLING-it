@@ -20,9 +20,20 @@ const aiEvalRoutes = require('./routes/aiEvalRoutes');
 
 let genAI = null;
 let geminiModel = null;
+let genAIEval = null;
+let geminiEvalModel = null;
+
 if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE') {
   genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+}
+
+if (process.env.GEMINI_EVAL_API_KEY && process.env.GEMINI_EVAL_API_KEY !== 'YOUR_GEMINI_EVAL_API_KEY_HERE') {
+  genAIEval = new GoogleGenerativeAI(process.env.GEMINI_EVAL_API_KEY);
+  geminiEvalModel = genAIEval.getGenerativeModel({ model: 'gemini-2.0-flash' });
+} else {
+  // Fallback to the standard key if eval key is not provided
+  geminiEvalModel = geminiModel;
 }
 
 function ensureUploadDir() {
@@ -105,7 +116,7 @@ function createApp() {
     app.use(adminRoutes(admin, upload));
     app.use(tfeedRoutes(admin, geminiModel));
     app.use(cycleRoutes(admin));
-    app.use(aiEvalRoutes(admin, geminiModel));
+    app.use(aiEvalRoutes(admin, geminiEvalModel));
   }
 
   // ── Legacy-compatible JSON fallbacks when Supabase off ───

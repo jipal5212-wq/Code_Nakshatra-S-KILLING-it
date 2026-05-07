@@ -165,5 +165,65 @@ module.exports = function aiEvalRoutes(admin, geminiModel) {
     }
   });
 
+  /* ── Task Steps Generator ───────────────────────────────────────── */
+  r.post('/api/ai/task-steps', requireUser, async (req, res) => {
+    try {
+      const { title, desc, domain, level, effort } = req.body || {};
+      if (!title) return res.status(400).json({ error: 'Task title required' });
+
+      // Try Gemini first
+      if (geminiModel) {
+        try {
+          const prompt = `You are a technical mentor for the S-KILLING IT learning platform.
+
+Given this task, generate 6-8 detailed, actionable build steps that a ${level || 'Beginner'} student should follow.
+
+TASK: ${title}
+DESCRIPTION: ${desc || 'No description'}
+DOMAIN: ${domain || 'General'}
+LEVEL: ${level || 'Beginner'}
+ESTIMATED TIME: ${effort || '~1 hr'}
+
+Each step must be practical and specific to THIS task. Not generic advice.
+Include what tools to open, what code to write, what to test.
+
+Return ONLY valid JSON array — no markdown, no explanation:
+[
+  { "title": "Step title (3-6 words)", "body": "Detailed instruction (2-3 sentences, specific to the task)" }
+]`;
+          const result = await Promise.race([
+            geminiModel.generateContent(prompt),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+          ]);
+          const text = result.response.text();
+          const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+          const match = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (match) {
+            const steps = JSON.parse(match[0]);
+            if (Array.isArray(steps) && steps.length > 0) {
+              return res.json({ ok: true, steps: steps.slice(0, 8) });
+            }
+          }
+        } catch (e) {
+          console.warn('[task-steps] Gemini failed:', e.message);
+        }
+      }
+
+      // Fallback: generic steps
+      res.json({ ok: true, steps: [
+        { title: 'Set up your environment', body: 'Install required tools, libraries, and dependencies for ' + (title || 'the project') + '. Create your project folder and initialize files.' },
+        { title: 'Watch the tutorial segment', body: 'Watch the highlighted portion of the tutorial video. Take notes on the key concepts and code patterns shown.' },
+        { title: 'Build the core feature', body: 'Implement the main functionality: ' + (desc || title) + '. Follow along with the video but write the code yourself.' },
+        { title: 'Add error handling', body: 'Add try-catch blocks, input validation, and edge case handling. Make your code robust and production-ready.' },
+        { title: 'Add your own improvements', body: 'Go beyond the tutorial. Add unique features, better UI, comments, or optimizations that show your understanding.' },
+        { title: 'Test everything', body: 'Run your code end-to-end. Fix any bugs. Take screenshots of the working output to include in your submission.' },
+        { title: 'Submit your work', body: 'Upload your code file, paste your GitHub repo link, and add screenshots. The AI will auto-evaluate your submission and award points.' }
+      ]});
+    } catch (e) {
+      console.error('[task-steps] Error:', e.message);
+      res.status(500).json({ error: 'Failed to generate steps' });
+    }
+  });
+
   return r;
 };

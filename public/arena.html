@@ -344,7 +344,7 @@ function renderPool(){
     var watchSeg=t.watchSegment||"";
     var btnCol=isSel?"var(--red)":"rgba(230,0,0,.15)";var btnTxt=isSel?"#fff":"var(--red)";
     var btn=canSelect
-      ?"<button onclick=\"selectPoolItem("+i+")\" style=\"background:"+btnCol+";border:1px solid var(--red);color:"+btnTxt+";font-family:var(--display-font);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:7px 16px;border-radius:4px;cursor:pointer\">"+(isSel?"&#10003; Selected":"Select This")+"</button>"
+      ?"<button onclick=\"selectPoolItem("+i+")\" style=\"background:"+btnCol+";border:1px solid var(--red);color:"+btnTxt+";font-family:var(--display-font);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:7px 16px;border-radius:4px;cursor:pointer\">"+(isSel?"&#10003; Selected":"View Details &rarr;")+"</button>"
       :"<span style=\"font-family:var(--display-font);font-size:11px;font-weight:700;color:rgba(255,255,255,.3)\">"+(isLk?"Locked":"")+"</span>";
     var numBadge="<div style=\"position:absolute;top:10px;right:10px;z-index:5;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);font-family:var(--display-font);font-weight:800;font-size:13px;letter-spacing:.5px;padding:3px 9px;border-radius:60px;backdrop-filter:blur(4px)\">#"+(i+1)+"</div>";
     var hovDesc="<div class='desc-hov' style='position:absolute;inset:0;z-index:3;background:rgba(0,0,0,.92);padding:12px 14px;display:flex;flex-direction:column;justify-content:flex-end;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);pointer-events:none'>"
@@ -379,11 +379,19 @@ function selectPoolItem(i){
     selectedTask=poolItems.findIndex(function(it){return it.task&&it.task.id===cycleData.locked_task_id;});
     renderPool();return;
   }
-  var t=poolItems[i]&&poolItems[i].task;if(!t)return;
-  // Just highlight — no API call, no redirect yet
-  selectedTask=i;
-  renderPool();
-  document.getElementById("selectionNote").textContent="Selected: "+t.title+" — click Confirm Selection to lock it in.";
+  var item=poolItems[i];if(!item||!item.task)return;
+  var t=item.task;var v=item.video||{};
+  // Save full task+video data for the detail page and redirect
+  var detailData={
+    id:t.id||"",title:t.title||"",desc:t.desc||t.objective||"",
+    effort:t.effort||"~1 hr",domain:t.domain||"",level:t.level||session.level||"Beginner",
+    watchSegment:t.watchSegment||"",
+    videoId:v.videoId||v.id||"",videoTitle:v.title||"",
+    thumbnail:v.thumbnail||(v.id?"https://img.youtube.com/vi/"+(v.videoId||v.id)+"/hqdefault.jpg":""),
+    channel:v.channel||"",_poolIdx:i
+  };
+  sessionStorage.setItem("skilling_task_detail",JSON.stringify(detailData));
+  window.location.href="/task-detail.html";
 }
 function selectTask(i){selectPoolItem(i);}
 function renderTasks(){renderPool();}

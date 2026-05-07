@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="/logo.png">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Details - S-KILLING IT</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/task-detail.css">
+</head>
+<body>
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <div style="background:none;padding:0;width:38px;height:38px;"><img src="/logo.png" alt="S" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;"></div>
+    <span class="nav-logo-text">S-KILLING <em>it</em></span>
+  </a>
+  <div class="nav-right">
+    <ul class="nav-links">
+      <li><a href="/arena.html">My Arena</a></li>
+      <li><a href="/explore.html">Explore</a></li>
+      <li><a href="/submit.html">Submit</a></li>
+    </ul>
+  </div>
+</nav>
+<div class="page-wrap">
+  <a href="/arena.html" class="back-link">&#8592; Back to Arena</a>
+  <div class="td-hero">
+    <img class="td-hero-img" id="tdThumb" src="" alt="">
+    <div class="td-hero-overlay">
+      <div><span class="td-domain" id="tdDomain"></span><span class="td-level" id="tdLevel"></span></div>
+      <h1 class="td-title" id="tdTitle">Loading...</h1>
+      <p class="td-desc" id="tdDesc"></p>
+      <div class="td-meta">
+        <div class="td-meta-item">&#9201; <span id="tdEffort">~1 hr</span></div>
+        <div class="td-meta-item">&#128202; <span id="tdPointsSmall">10 pts</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="td-video-section" id="tdVideoSection">
+    <div class="td-video-header"><span style="font-size:24px">&#127916;</span><span class="td-video-label">Tutorial Video</span></div>
+    <div class="td-video-embed"><iframe id="tdVideoFrame" src="" allowfullscreen allow="autoplay;encrypted-media;picture-in-picture"></iframe></div>
+    <div class="td-watch-badge" id="tdWatchBadge" style="display:none"><span style="font-size:18px">&#9201;</span><span id="tdWatchSegText">Watch: 00:00 - 18:00</span></div>
+    <p style="margin-top:12px;font-size:13px;color:rgba(255,255,255,.35)">Watch the highlighted segment above, then build the project below.</p>
+  </div>
+  <div class="td-points-card">
+    <div><div class="td-points-value" id="tdPointsValue">10</div><div class="td-points-label">Points on Completion</div></div>
+    <div><div class="td-points-sub">Complete this task and upload your work. AI will review your code and if it passes (score &gt;= 70), you automatically earn these points.</div></div>
+  </div>
+  <div class="td-section" id="tdStepsSection">
+    <div class="td-section-tag"><div class="td-section-bar"></div><span class="td-section-text">Step-by-Step</span></div>
+    <h2 class="td-section-title">HOW TO <em>BUILD</em> IT</h2>
+    <div class="td-steps" id="tdSteps">
+      <div class="td-loading"><div class="td-loading-spinner"></div><p style="font-family:var(--display-font);font-weight:700;font-size:14px;text-transform:uppercase;color:rgba(255,255,255,.35)">Generating your step-by-step plan...</p></div>
+    </div>
+  </div>
+  <div class="td-section">
+    <div class="td-section-tag"><div class="td-section-bar"></div><span class="td-section-text">Deliverables</span></div>
+    <h2 class="td-section-title">WHAT TO <em>SUBMIT</em></h2>
+    <div class="td-deliverables">
+      <div class="td-deliver"><span style="font-size:20px">&#128193;</span><div class="td-deliver-text"><strong>Code File</strong><br>Upload the main .py / .js / .html file you built</div></div>
+      <div class="td-deliver"><span style="font-size:20px">&#128279;</span><div class="td-deliver-text"><strong>GitHub Repo</strong><br>Push your code to a repo and paste the link</div></div>
+      <div class="td-deliver"><span style="font-size:20px">&#128248;</span><div class="td-deliver-text"><strong>Screenshots</strong><br>Show that your code runs and produces output</div></div>
+      <div class="td-deliver"><span style="font-size:20px">&#128221;</span><div class="td-deliver-text"><strong>Brief Notes</strong><br>What you learned, what was hard, what you would improve</div></div>
+    </div>
+  </div>
+</div>
+<div class="td-confirm-wrap">
+  <span class="td-confirm-info" id="tdConfirmInfo">Ready to build this?</span>
+  <button class="td-confirm-btn" id="tdConfirmBtn" onclick="confirmAndGo()">&#128640; Confirm Selection and Go to Submit</button>
+</div>
+<script src="/js/skilling-auth.js"></script>
+<script src="/js/task-detail.js"></script>
+</body>
+</html>

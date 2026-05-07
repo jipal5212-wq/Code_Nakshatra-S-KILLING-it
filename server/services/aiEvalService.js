@@ -127,9 +127,12 @@ async function evaluateSubmission(geminiModel, task, submission) {
 
   const fileContents = [];
   for (const fp of (submission.file_paths || [])) {
-    const name = path.basename(fp);
-    const { ext, content, reason } = readFileContent(fp);
-    fileContents.push({ name, ext, content, reason });
+    // file_paths stored as "path|originalname" or just "path"
+    const parts = fp.split('|');
+    const filePath = parts[0];
+    const origName = parts[1] || path.basename(filePath);
+    const { ext, content, reason } = readFileContent(filePath);
+    fileContents.push({ name: origName, ext, content, reason });
   }
 
   const urls = {

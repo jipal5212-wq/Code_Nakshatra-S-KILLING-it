@@ -188,6 +188,7 @@ module.exports = function userRoutes(admin, upload) {
 
       // Allow re-upload even if previously accepted (for AI re-evaluation)
       const rel = `/uploads/${req.file.filename}`;
+      const originalName = req.file.originalname || req.file.filename;
       const files = [rel]; // Fresh file list on new upload
 
       const upsertPayload = {
@@ -206,8 +207,12 @@ module.exports = function userRoutes(admin, upload) {
         updated_at: new Date().toISOString()
       };
 
+      // Store original filenames in metadata (uses admin_notes or JSON in file_paths)
+      // We encode original name into file_paths as "path|originalname"
+      upsertPayload.file_paths = [`${rel}|${originalName}`];
+
       await admin.from('submission_bundles').upsert(upsertPayload, { onConflict: 'user_id,cycle_start_iso' });
-      res.json({ ok: true, path: rel, file_paths: files, bundleKey: cStart });
+      res.json({ ok: true, path: rel, originalName, file_paths: files, bundleKey: cStart });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });

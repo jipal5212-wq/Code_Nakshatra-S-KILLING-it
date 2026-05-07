@@ -49,11 +49,12 @@ function createApp() {
   const storage = multer.diskStorage({
     destination: (_req, _f, cb) => cb(null, UPLOAD_DIR),
     filename: (_req, file, cb) => {
-      // Strip spaces and any character that isn't alphanumeric, dot, dash, or underscore
-      const safe = file.originalname
+      // Preserve original extension so browsers serve correct Content-Type
+      const ext = path.extname(file.originalname) || '';
+      const base = path.basename(file.originalname, ext)
         .replace(/\s+/g, '_')
         .replace(/[^a-zA-Z0-9.\-_]/g, '');
-      cb(null, `${Date.now()}-${safe || 'file'}`);
+      cb(null, `${Date.now()}-${base || 'file'}${ext}`);
     }
   });
   const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
@@ -67,7 +68,26 @@ function createApp() {
   app.use(express.json({ limit: '4mb' }));
   app.use(cookieParser());
   app.use(express.static(path.join(__dirname, '..', 'public')));
-  app.use('/uploads', express.static(UPLOAD_DIR));
+  app.use('/uploads', express.static(UPLOAD_DIR, {
+    setHeaders: (res, filePath) => {
+      // Ensure code files are served as text so browsers can display them
+      const ext = path.extname(filePath).toLowerCase();
+      const textTypes = {
+        '.py': 'text/x-python', '.js': 'text/javascript', '.ts': 'text/typescript',
+        '.jsx': 'text/javascript', '.tsx': 'text/typescript', '.html': 'text/html',
+        '.css': 'text/css', '.json': 'application/json', '.md': 'text/markdown',
+        '.txt': 'text/plain', '.csv': 'text/csv', '.sql': 'text/x-sql',
+        '.sh': 'text/x-sh', '.yml': 'text/yaml', '.yaml': 'text/yaml',
+        '.xml': 'text/xml', '.java': 'text/x-java-source', '.cpp': 'text/x-c++src',
+        '.c': 'text/x-csrc', '.h': 'text/x-chdr', '.rb': 'text/x-ruby',
+        '.go': 'text/x-go', '.rs': 'text/x-rust', '.kt': 'text/x-kotlin',
+        '.swift': 'text/x-swift', '.r': 'text/x-r', '.ipynb': 'application/json'
+      };
+      if (textTypes[ext]) {
+        res.setHeader('Content-Type', textTypes[ext] + '; charset=utf-8');
+      }
+    }
+  }));
 
   const admin = getAdminClient();
   if (admin)

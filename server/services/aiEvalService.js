@@ -1,6 +1,9 @@
 /**
  * AI Evaluation Service — Auto-grading with level-based points
  * Beginner = 10pts, Intermediate = 20pts, Advanced = 50pts
+ *
+ * If all submitted files are binary/unreadable → verdict: "deferred" (admin review)
+ * If readable code exists → Gemini auto-evaluates
  */
 const fs = require('fs');
 const path = require('path');
@@ -9,9 +12,12 @@ const TEXT_EXTENSIONS = new Set([
   '.py','.js','.ts','.jsx','.tsx','.html','.css','.json','.md','.txt',
   '.ipynb','.java','.cpp','.c','.h','.rb','.go','.rs','.php','.sql',
   '.sh','.bat','.yaml','.yml','.xml','.csv','.r','.R','.swift','.kt',
-  '.dart','.lua','.ino','.pde'
+  '.dart','.lua','.ino','.pde','.vue','.svelte','.scss','.less','.toml',
+  '.cfg','.ini','.env','.log','.makefile','.dockerfile','.tf','.proto'
 ]);
 const MAX_FILE_CHARS = 30000;
+// Files larger than this are too complex for confident AI grading → defer to admin
+const DEFER_FILE_CHARS = 60000;
 
 const POINTS_MAP = { 'Beginner': 10, 'Intermediate': 20, 'Advanced': 50 };
 
@@ -23,19 +29,31 @@ function getPointsForLevel(level) {
   return 10;
 }
 
-function readFileContent(filePath) {
+function getFileSize(filePath) {
   try {
-    const ext = path.extname(filePath).toLowerCase();
-    if (!TEXT_EXTENSIONS.has(ext)) return { ext, content: null, reason: `Binary format (${ext})` };
     const absPath = path.isAbsolute(filePath)
       ? filePath
       : path.join(__dirname, '..', '..', filePath.replace(/^\//, ''));
-    if (!fs.existsSync(absPath)) return { ext, content: null, reason: 'File not found' };
+    if (!fs.existsSync(absPath)) return 0;
+    return fs.statSync(absPath).size;
+  } catch { return 0; }
+}
+
+function readFileContent(filePath) {
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    if (!TEXT_EXTENSIONS.has(ext)) return { ext, content: null, reason: `Binary format (${ext})`, binary: true };
+    const absPath = path.isAbsolute(filePath)
+      ? filePath
+      : path.join(__dirname, '..', '..', filePath.replace(/^\//, ''));
+    if (!fs.existsSync(absPath)) return { ext, content: null, reason: 'File not found', binary: false };
+    const rawSize = fs.statSync(absPath).size;
     let content = fs.readFileSync(absPath, 'utf-8');
+    const totalChars = content.length;
     if (content.length > MAX_FILE_CHARS) content = content.slice(0, MAX_FILE_CHARS) + '\n... [TRUNCATED] ...';
-    return { ext, content };
+    return { ext, content, totalChars, rawSize, binary: false };
   } catch (err) {
-    return { ext: path.extname(filePath), content: null, reason: err.message };
+    return { ext: path.extname(filePath), content: null, reason: err.message, binary: false };
   }
 }
 
@@ -126,15 +144,74 @@ async function evaluateSubmission(geminiModel, task, submission) {
   }
 
   const fileContents = [];
+  let totalReadableChars = 0;
+  let allBinary = true;
+  let fileNames = [];
+
   for (const fp of (submission.file_paths || [])) {
     // file_paths stored as "path|originalname" or just "path"
     const parts = fp.split('|');
     const filePath = parts[0];
     const origName = parts[1] || path.basename(filePath);
-    const { ext, content, reason } = readFileContent(filePath);
+    const { ext, content, reason, binary, totalChars } = readFileContent(filePath);
     fileContents.push({ name: origName, ext, content, reason });
+    fileNames.push(origName);
+    if (content) {
+      allBinary = false;
+      totalReadableChars += (totalChars || content.length);
+    } else if (!binary) {
+      // File exists but couldn't be read for non-binary reason (e.g. not found)
+      allBinary = false;
+    }
   }
 
+  const hasUrls = submission.github_url || submission.live_url || submission.demo_video_url;
+
+  // ── DEFER TO ADMIN: All files are binary & no URLs to evaluate ──
+  if (fileContents.length > 0 && allBinary && !hasUrls) {
+    const maxPoints = getPointsForLevel(task.level);
+    const binExts = fileContents.map(f => f.ext).join(', ');
+    return {
+      score: null,
+      verdict: 'deferred',
+      summary: `Submitted file(s) are in binary format (${binExts}) which AI cannot read as code. This has been forwarded to an admin reviewer.`,
+      feedback: `Your submission (${fileNames.join(', ')}) has been received! Since it's a binary file type, our admin team will review it manually. You'll see the result once reviewed.`,
+      breakdown: null,
+      strengths: ['File submitted successfully'],
+      improvements: ['Consider also submitting a GitHub link or code file for faster AI review'],
+      points_awarded: 0,
+      max_points: maxPoints,
+      task_level: task.level || 'Beginner',
+      evaluated_at: new Date().toISOString(),
+      files_analyzed: fileContents.length,
+      deferred_reason: 'binary_files',
+      deferred_files: fileNames
+    };
+  }
+
+  // ── DEFER TO ADMIN: Total content is extremely large (>60k chars) ──
+  if (totalReadableChars > DEFER_FILE_CHARS && !hasUrls) {
+    const maxPoints = getPointsForLevel(task.level);
+    return {
+      score: null,
+      verdict: 'deferred',
+      summary: `Submission contains ${Math.round(totalReadableChars / 1000)}k characters of code — too complex for confident AI auto-grading. Forwarded to admin.`,
+      feedback: `Your submission (${fileNames.join(', ')}) is a substantial project! Since it's quite large, our admin team will review it carefully. You'll see the result once reviewed.`,
+      breakdown: null,
+      strengths: ['Substantial code submission shows effort'],
+      improvements: [],
+      points_awarded: 0,
+      max_points: maxPoints,
+      task_level: task.level || 'Beginner',
+      evaluated_at: new Date().toISOString(),
+      files_analyzed: fileContents.length,
+      deferred_reason: 'file_too_large',
+      deferred_files: fileNames,
+      total_chars: totalReadableChars
+    };
+  }
+
+  // ── NORMAL AI EVALUATION ──
   const urls = {
     github: submission.github_url || null,
     live: submission.live_url || null,

@@ -31,7 +31,8 @@ function renderVerdict(verdict, points, maxPoints, level) {
   var map = {
     accepted: { cls: 'verdict-pass', icon: '✅', text: 'ACCEPTED' },
     rejected: { cls: 'verdict-fail', icon: '✗', text: 'REJECTED' },
-    needs_revision: { cls: 'verdict-revision', icon: '⚠', text: 'NEEDS REVISION' }
+    needs_revision: { cls: 'verdict-revision', icon: '⚠', text: 'NEEDS REVISION' },
+    deferred: { cls: 'verdict-deferred', icon: '⏳', text: 'SENT TO ADMIN' }
   };
   var v = map[verdict] || map.rejected;
   var html = '<div style="text-align:center;margin-bottom:28px">'
@@ -44,6 +45,9 @@ function renderVerdict(verdict, points, maxPoints, level) {
       + '<div class="points-earned-label">POINTS EARNED</div>'
       + '<div class="points-earned-level">' + esc(level || 'Beginner') + ' Task · Max ' + maxPoints + ' pts</div>'
       + '</div>';
+  } else if (verdict === 'deferred') {
+    html += '<div style="margin-top:12px;font-size:13px;color:rgba(245,158,11,.7)">'
+      + 'Your submission is being reviewed by our admin team. Points (<strong style="color:#f59e0b">' + maxPoints + ' pts</strong>) will be awarded after review.</div>';
   } else if (verdict === 'rejected') {
     html += '<div style="margin-top:12px;font-size:13px;color:rgba(255,255,255,.4)">'
       + '0 points · Improve and re-upload to earn <strong style="color:#fff">' + maxPoints + ' pts</strong></div>';
@@ -95,7 +99,27 @@ function renderLists(strengths, improvements) {
 
 /* ── Full Result Render ── */
 function renderAutoEvalResult(ev) {
-  var html = renderScoreRing(ev.score || 0);
+  var html = '';
+
+  // Deferred submissions show an admin-review card instead of score ring
+  if (ev.verdict === 'deferred') {
+    html += '<div style="text-align:center;padding:24px 0">' 
+      + '<div style="font-size:3.5rem;margin-bottom:12px">📋</div>'
+      + '<div style="font-family:var(--display-font,Barlow Condensed,sans-serif);font-weight:800;font-size:1.5rem;letter-spacing:.06em;color:#f59e0b;text-transform:uppercase">SUBMITTED FOR ADMIN REVIEW</div>'
+      + '</div>';
+    html += renderVerdict(ev.verdict, 0, ev.max_points || 10, ev.task_level);
+    if (ev.summary) html += '<div class="eval-summary">' + esc(ev.summary) + '</div>';
+    html += renderLists(ev.strengths, ev.improvements);
+    if (ev.feedback) {
+      html += '<div class="eval-feedback"><div class="eval-feedback-label">📝 Note</div>' + esc(ev.feedback) + '</div>';
+    }
+    if (ev.deferred_files && ev.deferred_files.length) {
+      html += '<div style="margin-top:16px;font-size:.82rem;color:rgba(255,255,255,.35);text-align:center">Files received: ' + ev.deferred_files.map(function(f){return esc(f);}).join(', ') + '</div>';
+    }
+    return html;
+  }
+
+  html += renderScoreRing(ev.score || 0);
   html += renderVerdict(ev.verdict, ev.points_awarded || 0, ev.max_points || 10, ev.task_level);
   if (ev.summary) html += '<div class="eval-summary">' + esc(ev.summary) + '</div>';
   html += renderBreakdown(ev.breakdown);
@@ -149,6 +173,10 @@ async function runAutoEvaluation(token, bundleKey) {
         statusDiv.style.background = 'rgba(34,197,94,.12)';
         statusDiv.style.color = '#22c55e';
         statusDiv.textContent = '✅ Task accepted! +' + (ev.points_awarded || 0) + ' points earned';
+      } else if (ev.verdict === 'deferred') {
+        statusDiv.style.background = 'rgba(245,158,11,.12)';
+        statusDiv.style.color = '#f59e0b';
+        statusDiv.textContent = '📋 Sent to admin for manual review — you\'ll get points once approved';
       } else if (ev.verdict === 'rejected') {
         statusDiv.style.background = 'rgba(230,0,0,.1)';
         statusDiv.style.color = '#e60000';

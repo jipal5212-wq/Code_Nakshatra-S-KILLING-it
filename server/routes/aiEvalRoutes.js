@@ -103,6 +103,29 @@ module.exports = function aiEvalRoutes(admin, geminiModel) {
         return res.json({ ok: false, evaluation, task: mapTaskRow(task) });
       }
 
+      // ── DEFERRED → Admin review (binary files, too large, etc.) ──
+      if (evaluation.verdict === 'deferred') {
+        console.log('[ai-eval] Deferred to admin:', evaluation.deferred_reason, '| Files:', evaluation.deferred_files?.join(', '));
+        if (!alreadyAccepted) {
+          const updatePayload = {
+            status: 'pending_review',
+            admin_feedback: `⏳ Awaiting admin review — ${evaluation.deferred_reason === 'binary_files' ? 'Binary file(s) submitted, AI cannot read' : 'Large/complex submission'}. Files: ${(evaluation.deferred_files || []).join(', ')}`,
+            points_awarded: 0,
+            updated_at: new Date().toISOString()
+          };
+          await admin.from('submission_bundles').update(updatePayload).eq('id', bundle.id);
+          try {
+            await admin.from('submission_bundles').update({ ai_evaluation: evaluation }).eq('id', bundle.id);
+          } catch (_) {}
+        }
+        return res.json({
+          ok: true,
+          evaluation,
+          task: mapTaskRow(task),
+          submissionStatus: 'deferred'
+        });
+      }
+
       console.log('[ai-eval] Score:', evaluation.score, '| Verdict:', evaluation.verdict, '| Points:', evaluation.points_awarded);
 
       // ── 4. Update submission in DB ──
@@ -127,7 +150,6 @@ module.exports = function aiEvalRoutes(admin, geminiModel) {
 
         if (updateErr) {
           console.warn('[ai-eval] Bundle update error:', updateErr.message);
-          // Don't fail — we still have the evaluation result
         }
 
         // Try to store ai_evaluation JSON separately (column may not exist)

@@ -27,6 +27,7 @@
 .verdict-pass{background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.4);color:#22c55e}
 .verdict-fail{background:rgba(230,0,0,.12);border:1.5px solid rgba(230,0,0,.4);color:#e60000}
 .verdict-revision{background:rgba(255,200,0,.1);border:1.5px solid rgba(255,200,0,.35);color:#ffc800}
+.verdict-deferred{background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.35);color:#f59e0b}
 
 /* Points Earned */
 .points-earned{margin-top:20px;padding:20px 32px;background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.02));border:1.5px solid rgba(34,197,94,.3);border-radius:12px;display:inline-block;animation:pointsBounce .6s ease}

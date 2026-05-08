@@ -189,8 +189,29 @@ module.exports = function userRoutes(admin, upload) {
       if (bundle?.status === 'accepted')
         return res.status(400).json({ error: 'This task is already approved for today.' });
 
-      const rel = `/uploads/${req.file.filename}`;
-      const files = [...(bundle?.file_paths || []).filter(Boolean), rel];
+      // ── Upload to Supabase Storage (permanent, survives server restarts & Vercel cold starts) ──
+      const safe = req.file.originalname
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '');
+      const storagePath = `${uid}/${Date.now()}-${safe || 'file'}`;
+
+      const { error: uploadError } = await admin.storage
+        .from('submissions')
+        .upload(storagePath, req.file.buffer, {
+          contentType: req.file.mimetype || 'application/octet-stream',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('[storage upload]', uploadError);
+        return res.status(500).json({ error: 'File upload failed: ' + uploadError.message });
+      }
+
+      // Get the public URL — permanent CDN link
+      const { data: urlData } = admin.storage.from('submissions').getPublicUrl(storagePath);
+      const publicUrl = urlData?.publicUrl || storagePath;
+
+      const files = [...(bundle?.file_paths || []).filter(Boolean), publicUrl];
 
       const upsertPayload = {
         user_id: uid,
@@ -209,7 +230,7 @@ module.exports = function userRoutes(admin, upload) {
       };
 
       await admin.from('submission_bundles').upsert(upsertPayload, { onConflict: 'user_id,cycle_start_iso' });
-      res.json({ ok: true, path: rel, file_paths: files, bundleKey: cStart });
+      res.json({ ok: true, path: publicUrl, file_paths: files, bundleKey: cStart });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });

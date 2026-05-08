@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const cors = require('cors');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
@@ -24,38 +23,12 @@ if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_AP
   geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 }
 
-function ensureUploadDir() {
-  const isVercel = process.env.VERCEL || process.env.NOW_REGION;
-  const u = isVercel 
-    ? path.join('/tmp', 'uploads')
-    : path.join(__dirname, '..', 'uploads');
-  
-  if (!fs.existsSync(u)) {
-    try {
-      fs.mkdirSync(u, { recursive: true });
-    } catch (err) {
-      console.warn('Could not create upload dir:', u, err.message);
-    }
-  }
-  return u;
-}
-
 function createApp() {
-  ensureUploadDir();
   const app = express();
-  const UPLOAD_DIR = ensureUploadDir();
 
-  const storage = multer.diskStorage({
-    destination: (_req, _f, cb) => cb(null, UPLOAD_DIR),
-    filename: (_req, file, cb) => {
-      // Strip spaces and any character that isn't alphanumeric, dot, dash, or underscore
-      const safe = file.originalname
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9.\-_]/g, '');
-      cb(null, `${Date.now()}-${safe || 'file'}`);
-    }
-  });
-  const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
+  // Use memory storage — files are uploaded directly to Supabase Storage
+  // so they are never written to the ephemeral local disk (required for Vercel).
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
   app.use(
     cors({
@@ -66,12 +39,22 @@ function createApp() {
   app.use(express.json({ limit: '4mb' }));
   app.use(cookieParser());
   app.use(express.static(path.join(__dirname, '..', 'public')));
-  app.use('/uploads', express.static(UPLOAD_DIR));
 
   const admin = getAdminClient();
-  if (admin)
+  if (admin) {
     seedTasksIfEmpty(admin).catch((err) => console.error('[startup seed]', err));
-  else console.warn('⚠️  SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY missing — API routes needing DB disabled.');
+
+    // Ensure the 'submissions' storage bucket exists (public, so CDN URLs work without auth)
+    admin.storage.createBucket('submissions', { public: true }).then(({ error }) => {
+      if (error && !error.message?.includes('already exists')) {
+        console.warn('[storage] Could not create submissions bucket:', error.message);
+      } else {
+        console.log('[storage] submissions bucket ready.');
+      }
+    }).catch(err => console.warn('[storage] bucket check failed:', err.message));
+  } else {
+    console.warn('⚠️  SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY missing — API routes needing DB disabled.');
+  }
 
   // ── Content pack + explore: always available (Gemini + YT, no DB needed) ─
   app.use(publicRoutes(admin, geminiModel));

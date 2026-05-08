@@ -187,9 +187,34 @@ module.exports = function userRoutes(admin, upload) {
         .maybeSingle();
 
       // Allow re-upload even if previously accepted (for AI re-evaluation)
-      const rel = `/uploads/${req.file.filename}`;
-      const originalName = req.file.originalname || req.file.filename;
-      const files = [rel]; // Fresh file list on new upload
+
+      // ── Upload to Supabase Storage (permanent CDN URL, survives Vercel cold starts) ──
+      const ext = require('path').extname(req.file.originalname) || '';
+      const base = require('path').basename(req.file.originalname, ext)
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '');
+      const safeFilename = `${Date.now()}-${base || 'file'}${ext}`;
+      const storagePath = `${uid}/${safeFilename}`;
+      const originalName = req.file.originalname;
+
+      const { error: uploadError } = await admin.storage
+        .from('submissions')
+        .upload(storagePath, req.file.buffer, {
+          contentType: req.file.mimetype || 'application/octet-stream',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('[storage upload]', uploadError);
+        return res.status(500).json({ error: 'File upload failed: ' + uploadError.message });
+      }
+
+      // Permanent public CDN URL — works forever, no server-restart risk
+      const { data: urlData } = admin.storage.from('submissions').getPublicUrl(storagePath);
+      const publicUrl = urlData?.publicUrl || storagePath;
+
+      // Encode original filename into the stored entry so AI eval & admin can display it
+      const files = [`${publicUrl}|${originalName}`];
 
       const upsertPayload = {
         user_id: uid,
@@ -207,12 +232,8 @@ module.exports = function userRoutes(admin, upload) {
         updated_at: new Date().toISOString()
       };
 
-      // Store original filenames in metadata (uses admin_notes or JSON in file_paths)
-      // We encode original name into file_paths as "path|originalname"
-      upsertPayload.file_paths = [`${rel}|${originalName}`];
-
       await admin.from('submission_bundles').upsert(upsertPayload, { onConflict: 'user_id,cycle_start_iso' });
-      res.json({ ok: true, path: rel, originalName, file_paths: files, bundleKey: cStart });
+      res.json({ ok: true, path: publicUrl, originalName, file_paths: files, bundleKey: cStart });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });

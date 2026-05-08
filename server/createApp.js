@@ -35,37 +35,14 @@ if (process.env.GEMINI_EVAL_API_KEY && process.env.GEMINI_EVAL_API_KEY !== 'YOUR
   geminiEvalModel = geminiModel;
 }
 
-function ensureUploadDir() {
-  const isVercel = process.env.VERCEL || process.env.NOW_REGION;
-  const u = isVercel 
-    ? path.join('/tmp', 'uploads')
-    : path.join(__dirname, '..', 'uploads');
-  
-  if (!fs.existsSync(u)) {
-    try {
-      fs.mkdirSync(u, { recursive: true });
-    } catch (err) {
-      console.warn('Could not create upload dir:', u, err.message);
-    }
-  }
-  return u;
-}
-
 function createApp() {
   const app = express();
 
-  const storage = multer.diskStorage({
-    destination: (_req, _f, cb) => cb(null, UPLOAD_DIR),
-    filename: (_req, file, cb) => {
-      // Preserve original extension so browsers serve correct Content-Type
-      const ext = path.extname(file.originalname) || '';
-      const base = path.basename(file.originalname, ext)
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9.\-_]/g, '');
-      cb(null, `${Date.now()}-${base || 'file'}${ext}`);
-    }
-  });
-  const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
+  // Use memoryStorage — files are buffered in RAM and uploaded directly to
+  // Supabase Storage, so nothing is written to the ephemeral local filesystem.
+  // This is required for Vercel where the disk is wiped on every cold start.
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
 
   app.use(
     cors({
@@ -76,26 +53,6 @@ function createApp() {
   app.use(express.json({ limit: '4mb' }));
   app.use(cookieParser());
   app.use(express.static(path.join(__dirname, '..', 'public')));
-  app.use('/uploads', express.static(UPLOAD_DIR, {
-    setHeaders: (res, filePath) => {
-      // Ensure code files are served as text so browsers can display them
-      const ext = path.extname(filePath).toLowerCase();
-      const textTypes = {
-        '.py': 'text/x-python', '.js': 'text/javascript', '.ts': 'text/typescript',
-        '.jsx': 'text/javascript', '.tsx': 'text/typescript', '.html': 'text/html',
-        '.css': 'text/css', '.json': 'application/json', '.md': 'text/markdown',
-        '.txt': 'text/plain', '.csv': 'text/csv', '.sql': 'text/x-sql',
-        '.sh': 'text/x-sh', '.yml': 'text/yaml', '.yaml': 'text/yaml',
-        '.xml': 'text/xml', '.java': 'text/x-java-source', '.cpp': 'text/x-c++src',
-        '.c': 'text/x-csrc', '.h': 'text/x-chdr', '.rb': 'text/x-ruby',
-        '.go': 'text/x-go', '.rs': 'text/x-rust', '.kt': 'text/x-kotlin',
-        '.swift': 'text/x-swift', '.r': 'text/x-r', '.ipynb': 'application/json'
-      };
-      if (textTypes[ext]) {
-        res.setHeader('Content-Type', textTypes[ext] + '; charset=utf-8');
-      }
-    }
-  }));
 
   const admin = getAdminClient();
   if (admin) {

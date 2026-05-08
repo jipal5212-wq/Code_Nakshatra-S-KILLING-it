@@ -350,13 +350,23 @@ function showMsg(id,text,type='err'){
 async function checkAndOpenFile(url){
   try{
     const r=await fetch(url,{method:'HEAD'});
-    if(r.ok){window.open(url,'_blank');return;}
-    // File missing — show friendly toast
+    if(r.ok){
+      // For code/text files, open in new tab; for binaries, trigger download
+      const ct=r.headers.get('content-type')||'';
+      if(ct.includes('text')||ct.includes('json')||ct.includes('javascript')||ct.includes('html')||ct.includes('css')||ct.includes('xml')||ct.includes('image')||ct.includes('pdf')||ct.includes('video')){
+        window.open(url,'_blank');
+      } else {
+        // Trigger download for binary/unknown types
+        const a=document.createElement('a');a.href=url;a.download=url.split('/').pop();a.click();
+      }
+      return;
+    }
+    // File missing — show friendly toast with retry link
     const toast=document.createElement('div');
-    toast.textContent='⚠️ File not found on server. It may have been uploaded before a server restart and is no longer on disk.';
+    toast.innerHTML='⚠️ File not found on server. It may have been uploaded before a server restart.<br><a href="'+esc(url)+'" target="_blank" style="color:#60a5fa;text-decoration:underline;font-size:.85rem">Try direct link →</a>';
     toast.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e1e2e;border:1px solid rgba(245,158,11,.5);color:#f59e0b;font-family:var(--ff-body);font-size:.85rem;padding:12px 20px;border-radius:8px;z-index:99999;max-width:420px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)';
     document.body.appendChild(toast);
-    setTimeout(()=>toast.remove(),5000);
+    setTimeout(()=>toast.remove(),6000);
   }catch{window.open(url,'_blank');}
 }
 
@@ -613,10 +623,14 @@ function subCard(s){
   if(s.demo_video_url)links+=`<a href="${esc(s.demo_video_url)}" target="_blank" rel="noopener">Demo Video →</a>`;
   (s.screenshot_urls||[]).forEach(u=>{links+=`<a href="${esc(u)}" target="_blank">Screenshot →</a>`;});
   (s.file_paths||[]).forEach(p=>{
-    // p is now a full Supabase Storage public URL; older entries may still be /uploads/... paths
-    const url=p.startsWith('http')?p:(p.startsWith('/')?p:'/'+p);
-    const label=p.split('/').pop()||'file';
-    links+=`<a href="${esc(url)}" target="_blank" rel="noopener" style="cursor:pointer;">📎 ${esc(label)} →</a>`;
+    // file_paths stored as "path|originalname" or just "path"
+    const parts=p.split('|');
+    const pp=(parts[0]||'').startsWith('/')?parts[0]:'/'+parts[0];
+    const origName=parts[1]||pp.split('/').pop()||'file';
+    const ext=(origName.split('.').pop()||'').toLowerCase();
+    const iconMap={py:'🐍',js:'📜',html:'🌐',css:'🎨',ipynb:'📓',json:'📋',java:'☕',cpp:'⚙️',c:'⚙️',md:'📝',txt:'📄',zip:'📦',rar:'📦',tar:'📦',gz:'📦',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',gif:'🖼️',svg:'🖼️',mp4:'🎬',webm:'🎬',mov:'🎬',pdf:'📕',docx:'📘',xlsx:'📗',pptx:'📙',csv:'📊',sql:'🗃️',sh:'🐚',ts:'📜',jsx:'📜',tsx:'📜',rb:'💎',go:'🔵',rs:'🦀',kt:'🟣',swift:'🍎'};
+    const icon=iconMap[ext]||'📎';
+    links+=`<a href="#" onclick="checkAndOpenFile('${esc(pp)}');return false;" title="${esc(origName)}" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px">${icon} ${esc(origName)} →</a>`;
   });
   const imgs=(s.screenshot_urls||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener" title="View screenshot" style="display:inline-block;margin:4px"><img src="${esc(u)}" alt="screenshot" style="width:100px;height:64px;object-fit:cover;border-radius:6px;background:#1a1a2e;border:1px solid rgba(255,255,255,.08)" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\\'font-size:.75rem;color:#60a5fa;text-decoration:underline;cursor:pointer\\'>📷 View Screenshot →</span>'"></a>`).join('');
   return`<div class="sub-card ${cls}">

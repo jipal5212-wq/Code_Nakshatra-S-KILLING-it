@@ -186,32 +186,10 @@ module.exports = function userRoutes(admin, upload) {
         .eq('cycle_start_iso', cStart)
         .maybeSingle();
 
-      if (bundle?.status === 'accepted')
-        return res.status(400).json({ error: 'This task is already approved for today.' });
-
-      // ── Upload to Supabase Storage (permanent, survives server restarts & Vercel cold starts) ──
-      const safe = req.file.originalname
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9.\-_]/g, '');
-      const storagePath = `${uid}/${Date.now()}-${safe || 'file'}`;
-
-      const { error: uploadError } = await admin.storage
-        .from('submissions')
-        .upload(storagePath, req.file.buffer, {
-          contentType: req.file.mimetype || 'application/octet-stream',
-          upsert: false
-        });
-
-      if (uploadError) {
-        console.error('[storage upload]', uploadError);
-        return res.status(500).json({ error: 'File upload failed: ' + uploadError.message });
-      }
-
-      // Get the public URL — permanent CDN link
-      const { data: urlData } = admin.storage.from('submissions').getPublicUrl(storagePath);
-      const publicUrl = urlData?.publicUrl || storagePath;
-
-      const files = [...(bundle?.file_paths || []).filter(Boolean), publicUrl];
+      // Allow re-upload even if previously accepted (for AI re-evaluation)
+      const rel = `/uploads/${req.file.filename}`;
+      const originalName = req.file.originalname || req.file.filename;
+      const files = [rel]; // Fresh file list on new upload
 
       const upsertPayload = {
         user_id: uid,
@@ -229,8 +207,12 @@ module.exports = function userRoutes(admin, upload) {
         updated_at: new Date().toISOString()
       };
 
+      // Store original filenames in metadata (uses admin_notes or JSON in file_paths)
+      // We encode original name into file_paths as "path|originalname"
+      upsertPayload.file_paths = [`${rel}|${originalName}`];
+
       await admin.from('submission_bundles').upsert(upsertPayload, { onConflict: 'user_id,cycle_start_iso' });
-      res.json({ ok: true, path: publicUrl, file_paths: files, bundleKey: cStart });
+      res.json({ ok: true, path: rel, originalName, file_paths: files, bundleKey: cStart });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });

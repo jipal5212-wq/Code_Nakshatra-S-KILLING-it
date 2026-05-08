@@ -15,20 +15,57 @@ const newsRoutes = require('./routes/newsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const tfeedRoutes = require('./routes/tfeedRoutes');
 const cycleRoutes = require('./routes/cycleRoutes');
+const aiEvalRoutes = require('./routes/aiEvalRoutes');
 
 let genAI = null;
 let geminiModel = null;
+let genAIEval = null;
+let geminiEvalModel = null;
+
 if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE') {
   genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 }
 
+if (process.env.GEMINI_EVAL_API_KEY && process.env.GEMINI_EVAL_API_KEY !== 'YOUR_GEMINI_EVAL_API_KEY_HERE') {
+  genAIEval = new GoogleGenerativeAI(process.env.GEMINI_EVAL_API_KEY);
+  geminiEvalModel = genAIEval.getGenerativeModel({ model: 'gemini-2.0-flash' });
+} else {
+  // Fallback to the standard key if eval key is not provided
+  geminiEvalModel = geminiModel;
+}
+
+function ensureUploadDir() {
+  const isVercel = process.env.VERCEL || process.env.NOW_REGION;
+  const u = isVercel 
+    ? path.join('/tmp', 'uploads')
+    : path.join(__dirname, '..', 'uploads');
+  
+  if (!fs.existsSync(u)) {
+    try {
+      fs.mkdirSync(u, { recursive: true });
+    } catch (err) {
+      console.warn('Could not create upload dir:', u, err.message);
+    }
+  }
+  return u;
+}
+
 function createApp() {
   const app = express();
 
-  // Use memory storage — files are uploaded directly to Supabase Storage
-  // so they are never written to the ephemeral local disk (required for Vercel).
-  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+  const storage = multer.diskStorage({
+    destination: (_req, _f, cb) => cb(null, UPLOAD_DIR),
+    filename: (_req, file, cb) => {
+      // Preserve original extension so browsers serve correct Content-Type
+      const ext = path.extname(file.originalname) || '';
+      const base = path.basename(file.originalname, ext)
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '');
+      cb(null, `${Date.now()}-${base || 'file'}${ext}`);
+    }
+  });
+  const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
   app.use(
     cors({
@@ -39,6 +76,26 @@ function createApp() {
   app.use(express.json({ limit: '4mb' }));
   app.use(cookieParser());
   app.use(express.static(path.join(__dirname, '..', 'public')));
+  app.use('/uploads', express.static(UPLOAD_DIR, {
+    setHeaders: (res, filePath) => {
+      // Ensure code files are served as text so browsers can display them
+      const ext = path.extname(filePath).toLowerCase();
+      const textTypes = {
+        '.py': 'text/x-python', '.js': 'text/javascript', '.ts': 'text/typescript',
+        '.jsx': 'text/javascript', '.tsx': 'text/typescript', '.html': 'text/html',
+        '.css': 'text/css', '.json': 'application/json', '.md': 'text/markdown',
+        '.txt': 'text/plain', '.csv': 'text/csv', '.sql': 'text/x-sql',
+        '.sh': 'text/x-sh', '.yml': 'text/yaml', '.yaml': 'text/yaml',
+        '.xml': 'text/xml', '.java': 'text/x-java-source', '.cpp': 'text/x-c++src',
+        '.c': 'text/x-csrc', '.h': 'text/x-chdr', '.rb': 'text/x-ruby',
+        '.go': 'text/x-go', '.rs': 'text/x-rust', '.kt': 'text/x-kotlin',
+        '.swift': 'text/x-swift', '.r': 'text/x-r', '.ipynb': 'application/json'
+      };
+      if (textTypes[ext]) {
+        res.setHeader('Content-Type', textTypes[ext] + '; charset=utf-8');
+      }
+    }
+  }));
 
   const admin = getAdminClient();
   if (admin) {
@@ -67,6 +124,7 @@ function createApp() {
     app.use(adminRoutes(admin, upload));
     app.use(tfeedRoutes(admin, geminiModel));
     app.use(cycleRoutes(admin));
+    app.use(aiEvalRoutes(admin, geminiEvalModel));
   }
 
   // ── Legacy-compatible JSON fallbacks when Supabase off ───

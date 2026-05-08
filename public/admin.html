@@ -623,14 +623,16 @@ function subCard(s){
   if(s.demo_video_url)links+=`<a href="${esc(s.demo_video_url)}" target="_blank" rel="noopener">Demo Video →</a>`;
   (s.screenshot_urls||[]).forEach(u=>{links+=`<a href="${esc(u)}" target="_blank">Screenshot →</a>`;});
   (s.file_paths||[]).forEach(p=>{
-    // file_paths stored as "path|originalname" or just "path"
+    // file_paths stored as "url|originalname" (Supabase CDN) or legacy "/uploads/..." path
     const parts=p.split('|');
-    const pp=(parts[0]||'').startsWith('/')?parts[0]:'/'+parts[0];
-    const origName=parts[1]||pp.split('/').pop()||'file';
+    const rawUrl=(parts[0]||'').trim();
+    // If it's already an absolute URL (http/https), use it as-is. Legacy /uploads/ paths get kept as-is.
+    const fileUrl=rawUrl.startsWith('http')?rawUrl:(rawUrl.startsWith('/')?rawUrl:'/'+rawUrl);
+    const origName=parts[1]||rawUrl.split('/').pop()||'file';
     const ext=(origName.split('.').pop()||'').toLowerCase();
     const iconMap={py:'🐍',js:'📜',html:'🌐',css:'🎨',ipynb:'📓',json:'📋',java:'☕',cpp:'⚙️',c:'⚙️',md:'📝',txt:'📄',zip:'📦',rar:'📦',tar:'📦',gz:'📦',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',gif:'🖼️',svg:'🖼️',mp4:'🎬',webm:'🎬',mov:'🎬',pdf:'📕',docx:'📘',xlsx:'📗',pptx:'📙',csv:'📊',sql:'🗃️',sh:'🐚',ts:'📜',jsx:'📜',tsx:'📜',rb:'💎',go:'🔵',rs:'🦀',kt:'🟣',swift:'🍎'};
     const icon=iconMap[ext]||'📎';
-    links+=`<a href="#" onclick="checkAndOpenFile('${esc(pp)}');return false;" title="${esc(origName)}" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px">${icon} ${esc(origName)} →</a>`;
+    links+=`<a href="${esc(fileUrl)}" target="_blank" rel="noopener" title="${esc(origName)}" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px">${icon} ${esc(origName)} →</a>`;
   });
   const imgs=(s.screenshot_urls||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener" title="View screenshot" style="display:inline-block;margin:4px"><img src="${esc(u)}" alt="screenshot" style="width:100px;height:64px;object-fit:cover;border-radius:6px;background:#1a1a2e;border:1px solid rgba(255,255,255,.08)" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\\'font-size:.75rem;color:#60a5fa;text-decoration:underline;cursor:pointer\\'>📷 View Screenshot →</span>'"></a>`).join('');
   return`<div class="sub-card ${cls}">
